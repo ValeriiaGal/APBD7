@@ -3,7 +3,7 @@ using APBD2;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-var deviceManager = new DeviceManager();
+var deviceManager = new DeviceManager();  
 
 // GET: All devices 
 app.MapGet("/devices", () =>
