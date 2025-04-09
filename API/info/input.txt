@@ -1,0 +1,6 @@
+SW-01,Fitbit Charge 5,true,65%
+P-02,Office PC,true,Windows 11
+ED-03,Sensor Hub,false,192.168.0.15,MD Ltd. Sensors
+SW-04,Galaxy Watch,false,45%
+P-05,Home PC,false,Linux
+ED-06,Router 7,true,10.0.0.2,MD Ltd. Net
