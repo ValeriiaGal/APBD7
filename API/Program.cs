@@ -1,6 +1,13 @@
 using APBD2;
 
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+
 var app = builder.Build();
 
 var deviceManager = new DeviceManager();  
@@ -64,5 +71,18 @@ app.MapDelete("/devices/{id:int}", (int id) =>
         return Results.NotFound("Device not found");
     }
 });
+
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+
+app.MapGet("/", () => Results.Redirect("/swagger"));
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
 
 app.Run();
