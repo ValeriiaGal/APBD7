@@ -70,67 +70,77 @@ public class DeviceManager
         }
     }
 
-    public void EditDeviceData(int id, string propertyName, object newValue)
+public void EditDeviceData(int id, string propertyName, object newValue)
+{
+    var device = _devices.Find(d => d.Id == id);
+    if (device != null)
     {
-        var device = _devices.Find(d => d.Id == id);
-        if (device != null)
+        switch (propertyName)
         {
-            switch (propertyName)
-            {
-                case "Name":
-                    device.Name = newValue.ToString();
-                    Console.WriteLine($"Device {device.Id} name updated to {device.Name}.");
-                    break;
-                case "Battery":
-                    if (device is Smartwatch sw && int.TryParse(newValue.ToString(), out int battery))
-                    {
-                        sw.Battery = battery;
-                        Console.WriteLine($"Smartwatch {sw.Id} battery updated to {sw.Battery}%.");
-                    }
-                    break;
-                case "OperatingSystem":
-                    if (device is PersonalComputer pc)
-                    {
-                        pc.OperatingSystem = newValue.ToString();
-                        Console.WriteLine($"PC {pc.Id} OS updated to {pc.OperatingSystem}.");
-                    }
-                    break;
-                case "IpAddress":
-                    if (device is EmbeddedDevice ed)
-                    {
-                        ed.IpAddress = newValue.ToString();
-                        Console.WriteLine($"Embedded device {ed.Id} IP updated to {ed.IpAddress}.");
-                    }
-                    break;
-                case "NetworkName":
-                    if (device is EmbeddedDevice ed2)
-                    {
-                        ed2.NetworkName = newValue.ToString();
-                        Console.WriteLine($"Embedded device {ed2.Id} network updated to {ed2.NetworkName}.");
-                    }
-                    break;
-                case "IsTurnedOn":
-                    bool newState = Convert.ToBoolean(newValue);
-                    if (newState)
-                    {
-                        device.TurnOn();
-                    }
-                    else
-                    {
-                        device.TurnOff();
-                    }
-                    Console.WriteLine($"Device {device.Name} turned {(newState ? "on" : "off")}.");
-                    break;
-                default:
-                    Console.WriteLine($"Unknown property: {propertyName}");
-                    break;
-            }
-        }
-        else
-        {
-            Console.WriteLine($"Device with Id {id} not found.");
+            case "Name":
+                device.Name = newValue.ToString();
+                break;
+
+            case "Battery":
+                if (device is Smartwatch sw && int.TryParse(newValue.ToString(), out int battery))
+                {
+                    sw.Battery = battery;
+                }
+                else
+                {
+                    throw new InvalidOperationException("Battery can only be updated for Smartwatch devices.");
+                }
+                break;
+
+            case "OperatingSystem":
+                if (device is PersonalComputer pc)
+                {
+                    pc.OperatingSystem = newValue.ToString();
+                }
+                else
+                {
+                    throw new InvalidOperationException("OperatingSystem can only be updated for PersonalComputer devices.");
+                }
+                break;
+
+            case "IpAddress":
+                if (device is EmbeddedDevice ed)
+                {
+                    ed.IpAddress = newValue.ToString();
+                }
+                else
+                {
+                    throw new InvalidOperationException("IpAddress can only be updated for EmbeddedDevice devices.");
+                }
+                break;
+
+            case "NetworkName":
+                if (device is EmbeddedDevice ed2)
+                {
+                    ed2.NetworkName = newValue.ToString();
+                }
+                else
+                {
+                    throw new InvalidOperationException("NetworkName can only be updated for EmbeddedDevice devices.");
+                }
+                break;
+
+            case "IsTurnedOn":
+                bool newState = Convert.ToBoolean(newValue);
+                if (newState) device.TurnOn();
+                else device.TurnOff();
+                break;
+
+            default:
+                throw new InvalidOperationException($"Unknown property: {propertyName}");
         }
     }
+    else
+    {
+        throw new Exception($"Device with Id {id} not found.");
+    }
+}
+
 
     public void ShowDevices()
     {
