@@ -1,5 +1,8 @@
-﻿using Microsoft.Data.SqlClient;
-namespace APBD2;
+﻿using System.Data;
+using Microsoft.Data.SqlClient;
+using APBD2;
+
+
 
 public class DeviceService : IDeviceService
 {
@@ -12,24 +15,21 @@ public class DeviceService : IDeviceService
 
     public IEnumerable<Device> GetAllDevices()
     {
-        List<Device> devices = [];
+        var devices = new List<Device>();
 
         using (var connection = new SqlConnection(_connectionString))
+        using (var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device", connection))
         {
             connection.Open();
-            var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device", connection);
-
-            using (var reader = command.ExecuteReader())
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
             {
-                while (reader.Read())
+                devices.Add(new Device
                 {
-                    devices.Add(new Device
-                    {
-                        Id = reader["Id"].ToString(),
-                        Name = reader["Name"].ToString(),
-                        IsTurnedOn = (bool)reader["IsEnabled"]
-                    });
-                }
+                    Id = reader["Id"].ToString(),
+                    Name = reader["Name"].ToString(),
+                    IsTurnedOn = (bool)reader["IsEnabled"]
+                });
             }
         }
 
@@ -38,81 +38,58 @@ public class DeviceService : IDeviceService
 
     public Device GetDeviceById(string id)
     {
-        using (var connection = new SqlConnection(_connectionString))
-        {
-            connection.Open();
-            var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device WHERE Id = @Id", connection);
-            command.Parameters.AddWithValue("@Id", int.Parse(id)); 
+        using var connection = new SqlConnection(_connectionString);
+        using var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device WHERE Id = @id", connection);
+        command.Parameters.AddWithValue("@id", id);
 
-            using (var reader = command.ExecuteReader())
+        connection.Open();
+        using var reader = command.ExecuteReader();
+        if (reader.Read())
+        {
+            return new Device
             {
-                if (reader.Read())
-                {
-                    return new Device
-                    {
-                        Id = reader["Id"].ToString(),
-                        Name = reader["Name"].ToString(),
-                        IsTurnedOn = (bool)reader["IsEnabled"]
-                    };
-                }
-                else
-                {
-                    throw new Exception("Device not found");
-                }
-            }
+                Id = reader["Id"].ToString(),
+                Name = reader["Name"].ToString(),
+                IsTurnedOn = (bool)reader["IsEnabled"]
+            };
         }
+
+        throw new Exception("Device not found");
     }
 
     public bool CreateDevice(Device device)
     {
-        const string insertString = 
-            "INSERT INTO Device (Name, IsEnabled) OUTPUT INSERTED.Id VALUES (@Name, @IsEnabled)";
+        using var connection = new SqlConnection(_connectionString);
+        using var command = new SqlCommand("INSERT INTO Device (Name, IsEnabled) VALUES (@name, @enabled)", connection);
+        command.Parameters.AddWithValue("@name", device.Name);
+        command.Parameters.AddWithValue("@enabled", device.IsTurnedOn);
 
-        using (var connection = new SqlConnection(_connectionString))
-        {
-            SqlCommand command = new SqlCommand(insertString, connection);
-            command.Parameters.AddWithValue("@Name", device.Name);
-            command.Parameters.AddWithValue("@IsEnabled", device.IsTurnedOn);
-
-            connection.Open();
-            var insertedId = command.ExecuteScalar(); 
-
-            if (insertedId != null)
-            {
-                device.Id = insertedId.ToString(); 
-                return true;
-            }
-
-            return false;
-        }
+        connection.Open();
+        int result = command.ExecuteNonQuery();
+        return result > 0;
     }
 
-    
     public bool UpdateDevice(Device device)
     {
-        using (var connection = new SqlConnection(_connectionString))
-        {
-            connection.Open();
-            var command = new SqlCommand(
-                "UPDATE Device SET Name = @Name, IsEnabled = @IsEnabled WHERE Id = @Id", connection);
-            
-            command.Parameters.AddWithValue("@Name", device.Name);
-            command.Parameters.AddWithValue("@IsEnabled", device.IsTurnedOn);
-            command.Parameters.AddWithValue("@Id", int.Parse(device.Id));
+        using var connection = new SqlConnection(_connectionString);
+        using var command = new SqlCommand("UPDATE Device SET Name = @name, IsEnabled = @enabled WHERE Id = @id", connection);
+        command.Parameters.AddWithValue("@id", device.Id);
+        command.Parameters.AddWithValue("@name", device.Name);
+        command.Parameters.AddWithValue("@enabled", device.IsTurnedOn);
 
-            return command.ExecuteNonQuery() > 0;
-        }
+        connection.Open();
+        int result = command.ExecuteNonQuery();
+        return result > 0;
     }
 
     public bool DeleteDevice(string id)
     {
-        using (var connection = new SqlConnection(_connectionString))
-        {
-            connection.Open();
-            var command = new SqlCommand("DELETE FROM Device WHERE Id = @Id", connection);
-            command.Parameters.AddWithValue("@Id", int.Parse(id));
+        using var connection = new SqlConnection(_connectionString);
+        using var command = new SqlCommand("DELETE FROM Device WHERE Id = @id", connection);
+        command.Parameters.AddWithValue("@id", id);
 
-            return command.ExecuteNonQuery() > 0;
-        }
+        connection.Open();
+        int result = command.ExecuteNonQuery();
+        return result > 0;
     }
 }

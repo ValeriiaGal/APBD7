@@ -66,4 +66,6 @@ app.MapDelete("/api/devices/{id}", (IDeviceService service, string id) =>
     return Results.NotFound();
 });
 
+
+
 app.Run();
