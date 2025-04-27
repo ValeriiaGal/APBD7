@@ -18,7 +18,7 @@ app.MapGet("/devices", () =>
 });
 
 // get device by id
-app.MapGet("/devices/{id:int}", (int id) =>
+app.MapGet("/devices/{id}", (string id) =>
 {
     try
     {
@@ -32,21 +32,21 @@ app.MapGet("/devices/{id:int}", (int id) =>
 });
 
 // Add Smartwatch
-app.MapPost("/devices/smartwatch", (Smartwatch device) =>
+app.MapPost("/devices/smartwatches", (Smartwatch device) =>
 {
     deviceManager.AddDevice(device);
     return Results.Created($"/devices/{device.Id}", device);
 });
 
 // Add Personal Computer
-app.MapPost("/devices/personalcomputer", (PersonalComputer device) =>
+app.MapPost("/devices/personalcomputers", (PersonalComputer device) =>
 {
     deviceManager.AddDevice(device);
     return Results.Created($"/devices/{device.Id}", device);
 });
 
 // Add Embedded Device
-app.MapPost("/devices/embeddeddevice", (EmbeddedDevice device) =>
+app.MapPost("/devices/embeddeddevices", (EmbeddedDevice device) =>
 {
     deviceManager.AddDevice(device);
     return Results.Created($"/devices/{device.Id}", device);
@@ -54,7 +54,7 @@ app.MapPost("/devices/embeddeddevice", (EmbeddedDevice device) =>
 
 
 // Edit
-app.MapPut("/devices/smartwatch/{id:int}", (int id, Smartwatch updatedDevice) =>
+app.MapPut("/devices/smartwatches/{id}", (string id, Smartwatch updatedDevice) =>
 {
     try
     {
@@ -69,7 +69,7 @@ app.MapPut("/devices/smartwatch/{id:int}", (int id, Smartwatch updatedDevice) =>
     }
 });
 
-app.MapPut("/devices/personalcomputer/{id:int}", (int id, PersonalComputer updatedDevice) =>
+app.MapPut("/devices/personalcomputers/{id}", (string id, PersonalComputer updatedDevice) =>
 {
     try
     {
@@ -84,7 +84,7 @@ app.MapPut("/devices/personalcomputer/{id:int}", (int id, PersonalComputer updat
     }
 });
 
-app.MapPut("/devices/embeddeddevice/{id:int}", (int id, EmbeddedDevice updatedDevice) =>
+app.MapPut("/devices/embeddeddevices/{id}", (string id, EmbeddedDevice updatedDevice) =>
 {
     try
     {
@@ -102,7 +102,7 @@ app.MapPut("/devices/embeddeddevice/{id:int}", (int id, EmbeddedDevice updatedDe
 
 
 // DELETE
-app.MapDelete("/devices/{id:int}", (int id) =>
+app.MapDelete("/devices/{id}", (string id) =>
 {
     try
     {

@@ -17,13 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Using Include="Xunit"/>
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\API\API.csproj" />
-      <ProjectReference Include="..\Entities\Entities.csproj" />
-      <ProjectReference Include="..\Logic\Logic.csproj" />
+        <ProjectReference Include="..\src\API\API.csproj" />
     </ItemGroup>
 
 </Project>

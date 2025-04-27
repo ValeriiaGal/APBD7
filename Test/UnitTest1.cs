@@ -19,7 +19,7 @@ public class DeviceManagerTest
     public void addDevice()
     {
         var manager = CreateManager();
-        var device = new Smartwatch { Id = 1, Name = "Test Smartwatch", Battery = 50 };
+        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
 
         manager.AddDevice(device);
         manager.ShowDevices(); 
@@ -29,10 +29,10 @@ public class DeviceManagerTest
     public void removeDevice()
     {
         var manager = CreateManager();
-        var device = new Smartwatch { Id = 1, Name = "Test Smartwatch", Battery = 50 };
+        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
         manager.AddDevice(device);
 
-        manager.RemoveDevice(1);
+        manager.RemoveDevice("1");
         manager.ShowDevices(); 
     }
 
@@ -40,11 +40,11 @@ public class DeviceManagerTest
     public void turnOnDevice()
     {
         var manager = CreateManager();
-        var device = new Smartwatch { Id = 1, Name = "Test Smartwatch", Battery = 50 };
+        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
         manager.AddDevice(device);
 
-        manager.TurnOnDevice(1);
-        var deviceAfterTurnOn = manager.GetDeviceById(1);
+        manager.TurnOnDevice("1");
+        var deviceAfterTurnOn = manager.GetDeviceById("1");
         Assert.True(deviceAfterTurnOn.IsTurnedOn, "Device should be turned on.");
     }
 
@@ -52,12 +52,12 @@ public class DeviceManagerTest
     public void editedDevice()
     {
         var manager = CreateManager();
-        var device = new Smartwatch { Id = 1, Name = "Test Smartwatch", Battery = 50 };
+        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
         manager.AddDevice(device);
 
-        manager.EditDeviceData(1, "Battery", 80);
+        manager.EditDeviceData("1", "Battery", 80);
 
-        var updatedDevice = (Smartwatch)manager.GetDeviceById(1);
+        var updatedDevice = (Smartwatch)manager.GetDeviceById("1");
         Assert.Equal(80, updatedDevice.Battery);
     }
 
@@ -65,13 +65,13 @@ public class DeviceManagerTest
     public void turnOffDevice()
     {
         var manager = CreateManager();
-        var device = new Smartwatch { Id = 1, Name = "Test Smartwatch", Battery = 50 };
+        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
         manager.AddDevice(device);
-        manager.TurnOnDevice(1);
+        manager.TurnOnDevice("1");
 
-        manager.TurnOffDevice(1);
+        manager.TurnOffDevice("1");
 
-        var deviceAfterTurnOff = manager.GetDeviceById(1);
+        var deviceAfterTurnOff = manager.GetDeviceById("1");
         Assert.False(deviceAfterTurnOff.IsTurnedOn, "Device should be turned off.");
     }
 }
