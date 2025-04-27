@@ -1,8 +1,5 @@
-﻿using System.Data;
-using Microsoft.Data.SqlClient;
-using APBD2;
-
-
+﻿using Microsoft.Data.SqlClient;
+namespace APBD2;
 
 public class DeviceService : IDeviceService
 {
@@ -15,21 +12,24 @@ public class DeviceService : IDeviceService
 
     public IEnumerable<Device> GetAllDevices()
     {
-        var devices = new List<Device>();
+        List<Device> devices = [];
 
         using (var connection = new SqlConnection(_connectionString))
-        using (var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device", connection))
         {
             connection.Open();
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
+            var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device", connection);
+
+            using (var reader = command.ExecuteReader())
             {
-                devices.Add(new Device
+                while (reader.Read())
                 {
-                    Id = reader["Id"].ToString(),
-                    Name = reader["Name"].ToString(),
-                    IsTurnedOn = (bool)reader["IsEnabled"]
-                });
+                    devices.Add(new Device
+                    {
+                        Id = reader["Id"].ToString(),
+                        Name = reader["Name"].ToString(),
+                        IsTurnedOn = (bool)reader["IsEnabled"]
+                    });
+                }
             }
         }
 
@@ -38,58 +38,81 @@ public class DeviceService : IDeviceService
 
     public Device GetDeviceById(string id)
     {
-        using var connection = new SqlConnection(_connectionString);
-        using var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device WHERE Id = @id", connection);
-        command.Parameters.AddWithValue("@id", id);
-
-        connection.Open();
-        using var reader = command.ExecuteReader();
-        if (reader.Read())
+        using (var connection = new SqlConnection(_connectionString))
         {
-            return new Device
-            {
-                Id = reader["Id"].ToString(),
-                Name = reader["Name"].ToString(),
-                IsTurnedOn = (bool)reader["IsEnabled"]
-            };
-        }
+            connection.Open();
+            var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device WHERE Id = @Id", connection);
+            command.Parameters.AddWithValue("@Id", int.Parse(id)); 
 
-        throw new Exception("Device not found");
+            using (var reader = command.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    return new Device
+                    {
+                        Id = reader["Id"].ToString(),
+                        Name = reader["Name"].ToString(),
+                        IsTurnedOn = (bool)reader["IsEnabled"]
+                    };
+                }
+                else
+                {
+                    throw new Exception("Device not found");
+                }
+            }
+        }
     }
 
     public bool CreateDevice(Device device)
     {
-        using var connection = new SqlConnection(_connectionString);
-        using var command = new SqlCommand("INSERT INTO Device (Name, IsEnabled) VALUES (@name, @enabled)", connection);
-        command.Parameters.AddWithValue("@name", device.Name);
-        command.Parameters.AddWithValue("@enabled", device.IsTurnedOn);
+        const string insertString = 
+            "INSERT INTO Device (Name, IsEnabled) OUTPUT INSERTED.Id VALUES (@Name, @IsEnabled)";
 
-        connection.Open();
-        int result = command.ExecuteNonQuery();
-        return result > 0;
+        using (var connection = new SqlConnection(_connectionString))
+        {
+            SqlCommand command = new SqlCommand(insertString, connection);
+            command.Parameters.AddWithValue("@Name", device.Name);
+            command.Parameters.AddWithValue("@IsEnabled", device.IsTurnedOn);
+
+            connection.Open();
+            var insertedId = command.ExecuteScalar(); // Get the generated Id
+
+            if (insertedId != null)
+            {
+                device.Id = insertedId.ToString(); // Save generated Id back into your object
+                return true;
+            }
+
+            return false;
+        }
     }
 
+    
     public bool UpdateDevice(Device device)
     {
-        using var connection = new SqlConnection(_connectionString);
-        using var command = new SqlCommand("UPDATE Device SET Name = @name, IsEnabled = @enabled WHERE Id = @id", connection);
-        command.Parameters.AddWithValue("@id", device.Id);
-        command.Parameters.AddWithValue("@name", device.Name);
-        command.Parameters.AddWithValue("@enabled", device.IsTurnedOn);
+        using (var connection = new SqlConnection(_connectionString))
+        {
+            connection.Open();
+            var command = new SqlCommand(
+                "UPDATE Device SET Name = @Name, IsEnabled = @IsEnabled WHERE Id = @Id", connection);
+            
+            command.Parameters.AddWithValue("@Name", device.Name);
+            command.Parameters.AddWithValue("@IsEnabled", device.IsTurnedOn);
+            command.Parameters.AddWithValue("@Id", int.Parse(device.Id));
 
-        connection.Open();
-        int result = command.ExecuteNonQuery();
-        return result > 0;
+            return command.ExecuteNonQuery() > 0;
+        }
     }
 
     public bool DeleteDevice(string id)
     {
-        using var connection = new SqlConnection(_connectionString);
-        using var command = new SqlCommand("DELETE FROM Device WHERE Id = @id", connection);
-        command.Parameters.AddWithValue("@id", id);
+        using (var connection = new SqlConnection(_connectionString))
+        {
+            connection.Open();
+            var command = new SqlCommand("DELETE FROM Device WHERE Id = @Id", connection);
+            command.Parameters.AddWithValue("@Id", int.Parse(id));
 
-        connection.Open();
-        int result = command.ExecuteNonQuery();
-        return result > 0;
+            return command.ExecuteNonQuery() > 0;
+        }
     }
 }
