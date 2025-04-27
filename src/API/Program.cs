@@ -115,6 +115,7 @@ app.MapPut("/api/devices", (IDeviceService service, Device device) =>
 app.MapDelete("/api/devices/{id}", (IDeviceService service, string id) =>
 {
     if (service.DeleteDevice(id))
+        
         return Results.Ok();
 
     return Results.NotFound();
