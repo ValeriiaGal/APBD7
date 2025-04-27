@@ -3,11 +3,11 @@
 /// <summary>
 /// Base class for all devices
 /// </summary>
-public abstract class Device
+public class Device
 {
     public string Id { get; set; }
     public string Name { get; set; } 
-    public bool IsTurnedOn { get; private set; }
+    public bool IsTurnedOn { get; set; }
     
     public virtual void TurnOn()
     {

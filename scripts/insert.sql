@@ -1,7 +1,7 @@
 ﻿
 INSERT INTO Device (Id, Name, IsEnabled)
 VALUES
-    ('1', 'Galaxy Fit', 1),
+    ('1', 'Galaxy Fcuit', 1),
     ('2', 'Apple Watch', 1),
     ('3', 'Xiaomi Band', 0),
     ('4', 'Dell XPS', 1),
@@ -10,7 +10,7 @@ VALUES
     ('7', 'Sensor A1', 1),
     ('8', 'Camera X3', 1),
     ('9', 'Alarm Unit', 0),
-    ('10', 'Huawei Watch', 1),
+    ('10', 'Huaweiy Watch', 1),
     ('11', 'Asus ROG', 1),
     ('12', 'Temperature Sensor', 1),
     ('13', 'Fitbit Sense', 0),

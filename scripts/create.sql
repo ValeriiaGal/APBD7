@@ -1,14 +1,16 @@
 ﻿
-IF OBJECT_ID('Embedded', 'U') IS NOT NULL DROP TABLE Embedded;
-IF OBJECT_ID('PersonalComputer', 'U') IS NOT NULL DROP TABLE PersonalComputer;
-IF OBJECT_ID('Smartwatch', 'U') IS NOT NULL DROP TABLE Smartwatch;
-IF OBJECT_ID('Device', 'U') IS NOT NULL DROP TABLE Device;
+DROP TABLE IF EXISTS Device;
+DROP TABLE IF EXISTS Smartwatch;
+DROP TABLE IF EXISTS PersonalComputer;
+DROP TABLE IF EXISTS Embedded;
 
 
-CREATE TABLE Device (
-                        Id NVARCHAR(50) PRIMARY KEY,    
-                        Name NVARCHAR(255) NOT NULL,
-                        IsEnabled BIT NOT NULL
+
+CREATE TABLE Device
+(
+    Id INT IDENTITY(1,1) PRIMARY KEY, 
+    Name NVARCHAR(255) NOT NULL,
+    IsEnabled BIT NOT NULL
 );
 
 

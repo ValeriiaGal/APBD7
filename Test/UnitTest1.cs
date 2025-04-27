@@ -1,77 +1,95 @@
 namespace Tests;
+
 using System.Collections.Generic;
 using APBD2;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
-public class DeviceManagerTest
+public class DeviceServiceTest
 {
-    private class StubLoader : IDeviceLoader
-    {
-        public List<object> LoadDevices() => new List<object>();
-    }
+    private readonly IDeviceService _deviceService;
 
-    private DeviceManager CreateManager()
+    public DeviceServiceTest()
     {
-        return new DeviceManager();
-    }
 
-    [Fact]
-    public void addDevice()
-    {
-        var manager = CreateManager();
-        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
+        var config = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json")
+            .Build();
 
-        manager.AddDevice(device);
-        manager.ShowDevices(); 
+        string connectionString = config.GetConnectionString("UniversityDatabase")
+                                ?? "Data Source=db-mssql;Initial Catalog=2019SBD;Integrated Security=True;Trust Server Certificate=True";
+        
+        _deviceService = new DeviceService(connectionString);
     }
 
     [Fact]
-    public void removeDevice()
+    public void AddDevice_ShouldCreateDevice()
     {
-        var manager = CreateManager();
-        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
-        manager.AddDevice(device);
+        var device = new Device
+        {
+            Name = "TestDevice",
+            IsTurnedOn = true
+        };
 
-        manager.RemoveDevice("1");
-        manager.ShowDevices(); 
+        var result = _deviceService.CreateDevice(device);
+
+        Assert.True(result, "Device should be created successfully.");
     }
 
     [Fact]
-    public void turnOnDevice()
+    public void GetAllDevices_ShouldReturnDevices()
     {
-        var manager = CreateManager();
-        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
-        manager.AddDevice(device);
-
-        manager.TurnOnDevice("1");
-        var deviceAfterTurnOn = manager.GetDeviceById("1");
-        Assert.True(deviceAfterTurnOn.IsTurnedOn, "Device should be turned on.");
+        var devices = _deviceService.GetAllDevices();
+        Assert.NotNull(devices);
+        Assert.True(devices.Any(), "Should return at least one device.");
     }
 
     [Fact]
-    public void editedDevice()
+    public void GetDeviceById_ShouldReturnCorrectDevice()
     {
-        var manager = CreateManager();
-        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
-        manager.AddDevice(device);
-
-        manager.EditDeviceData("1", "Battery", 80);
-
-        var updatedDevice = (Smartwatch)manager.GetDeviceById("1");
-        Assert.Equal(80, updatedDevice.Battery);
+        var allDevices = _deviceService.GetAllDevices();
+        var firstDevice = allDevices.FirstOrDefault();
+        
+        if (firstDevice != null)
+        {
+            var device = _deviceService.GetDeviceById(firstDevice.Id);
+            Assert.NotNull(device);
+            Assert.Equal(firstDevice.Id, device.Id);
+        }
     }
 
     [Fact]
-    public void turnOffDevice()
+    public void UpdateDevice_ShouldUpdateData()
     {
-        var manager = CreateManager();
-        var device = new Smartwatch { Id = "1", Name = "Test Smartwatch", Battery = 50 };
-        manager.AddDevice(device);
-        manager.TurnOnDevice("1");
+        var allDevices = _deviceService.GetAllDevices();
+        var device = allDevices.FirstOrDefault();
 
-        manager.TurnOffDevice("1");
+        if (device != null)
+        {
+            device.Name = "UpdatedName";
+            device.IsTurnedOn = !device.IsTurnedOn;
 
-        var deviceAfterTurnOff = manager.GetDeviceById("1");
-        Assert.False(deviceAfterTurnOff.IsTurnedOn, "Device should be turned off.");
+            var result = _deviceService.UpdateDevice(device);
+
+            Assert.True(result, "Device should be updated.");
+        }
+    }
+
+    [Fact]
+    public void DeleteDevice_ShouldRemoveDevice()
+    {
+        var newDevice = new Device
+        {
+            Name = "DeviceToDelete",
+            IsTurnedOn = false
+        };
+        _deviceService.CreateDevice(newDevice);
+
+        var allDevices = _deviceService.GetAllDevices();
+        var deviceToDelete = allDevices.Last();
+
+        var deleteResult = _deviceService.DeleteDevice(deviceToDelete.Id);
+
+        Assert.True(deleteResult, "Device should be deleted.");
     }
 }
