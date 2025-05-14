@@ -1,4 +1,4 @@
--- Insert into Device first
+
 INSERT INTO Device (Id, Name, IsEnabled)
 VALUES
     ('1', 'Galaxy Fit', 1),
@@ -17,7 +17,6 @@ VALUES
     ('14', 'Acer Aspire', 0),
     ('15', 'Gateway Device', 1);
 
--- Smartwatch
 INSERT INTO Smartwatch (BatteryPercentage, DeviceId)
 VALUES
     (75, '1'),
@@ -26,7 +25,6 @@ VALUES
     (80, '10'),
     (55, '13');
 
--- PersonalComputer
 INSERT INTO PersonalComputer (OperationSystem, DeviceId)
 VALUES
     ('Windows 11', '4'),
@@ -35,7 +33,6 @@ VALUES
     ('Windows 10', '11'),
     ('Linux Mint', '14');
 
--- Embedded
 INSERT INTO Embedded (IpAddress, NetworkName, DeviceId)
 VALUES
     ('192.168.1.1', 'MD Ltd. Network', '7'),
