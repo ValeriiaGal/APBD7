@@ -21,7 +21,7 @@ public class DeviceRepository : IDeviceRepository
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
 
-        var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device", connection);
+        var command = new SqlCommand("SELECT Id, Name, IsEnabled, RowVersion FROM Device", connection);
         using var reader = command.ExecuteReader();
 
         while (reader.Read())
@@ -30,7 +30,8 @@ public class DeviceRepository : IDeviceRepository
             {
                 Id = reader["Id"].ToString(),
                 Name = reader["Name"].ToString(),
-                IsTurnedOn = (bool)reader["IsEnabled"]
+                IsTurnedOn = (bool)reader["IsEnabled"],
+                RowVersion = (byte[])reader["RowVersion"]
             });
         }
 
@@ -42,7 +43,7 @@ public class DeviceRepository : IDeviceRepository
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
 
-        var command = new SqlCommand("SELECT Id, Name, IsEnabled FROM Device WHERE Id = @Id", connection);
+        var command = new SqlCommand("SELECT Id, Name, IsEnabled, RowVersion FROM Device WHERE Id = @Id", connection);
         command.Parameters.AddWithValue("@Id", id);
 
         using var reader = command.ExecuteReader();
@@ -50,14 +51,13 @@ public class DeviceRepository : IDeviceRepository
         if (!reader.Read())
             throw new Exception("Device not found");
 
-        var device = new Device
+        return new Device
         {
             Id = reader["Id"].ToString(),
             Name = reader["Name"].ToString(),
-            IsTurnedOn = (bool)reader["IsEnabled"]
+            IsTurnedOn = (bool)reader["IsEnabled"],
+            RowVersion = (byte[])reader["RowVersion"]
         };
-
-        return device;
     }
 
     public bool AddDeviceUsingProcedure(Device device)
@@ -68,57 +68,71 @@ public class DeviceRepository : IDeviceRepository
 
         try
         {
-            string deviceId = Guid.NewGuid().ToString();
-            device.Id = deviceId;
+            if (string.IsNullOrWhiteSpace(device.Id))
+                throw new InvalidOperationException("Device ID must be assigned before adding to DB.");
 
-            SqlCommand cmd;
-
-            switch (device)
+            SqlCommand cmd = device switch
             {
-                case Smartwatch sw:
-                    cmd = new SqlCommand("AddSmartwatch", connection, transaction)
-                    {
-                        CommandType = CommandType.StoredProcedure
-                    };
-                    cmd.Parameters.AddWithValue("@DeviceId", deviceId);
-                    cmd.Parameters.AddWithValue("@Name", sw.Name);
-                    cmd.Parameters.AddWithValue("@IsEnabled", sw.IsTurnedOn);
-                    cmd.Parameters.AddWithValue("@BatteryPercentage", sw.Battery);
-                    break;
+                Smartwatch sw when sw.Battery < 0 || sw.Battery > 100 => throw new ArgumentException("Battery level must be between 0 and 100."),
+                Smartwatch sw when sw.Battery < 11 && sw.IsTurnedOn => throw new ArgumentException("Smartwatch can't be turned on when battery level is below 11"),
 
-                case PersonalComputer pc:
-                    cmd = new SqlCommand("AddPersonalComputer", connection, transaction)
-                    {
-                        CommandType = CommandType.StoredProcedure
-                    };
-                    cmd.Parameters.AddWithValue("@DeviceId", deviceId);
-                    cmd.Parameters.AddWithValue("@Name", pc.Name);
-                    cmd.Parameters.AddWithValue("@IsEnabled", pc.IsTurnedOn);
-                    cmd.Parameters.AddWithValue("@OperationSystem", pc.OperatingSystem);
-                    break;
+                PersonalComputer pc when string.IsNullOrWhiteSpace(pc.OperatingSystem) && pc.IsTurnedOn =>
+                    throw new ArgumentException("There should be an operating system for PC to turn on"),
 
-                case EmbeddedDevice ed:
-                    cmd = new SqlCommand("AddEmbedded", connection, transaction)
-                    {
-                        CommandType = CommandType.StoredProcedure
-                    };
-                    cmd.Parameters.AddWithValue("@DeviceId", deviceId);
-                    cmd.Parameters.AddWithValue("@Name", ed.Name);
-                    cmd.Parameters.AddWithValue("@IsEnabled", ed.IsTurnedOn);
-                    cmd.Parameters.AddWithValue("@IpAddress", ed.IpAddress);
-                    cmd.Parameters.AddWithValue("@NetworkName", ed.NetworkName);
-                    break;
+                EmbeddedDevice ed when !ed.NetworkName.Contains("MD Ltd.") && ed.IsTurnedOn =>
+                    throw new ArgumentException("Embedded Device network must be MD Ltd. to be turned on"),
 
-                default:
-                    return false;
-            }
+                EmbeddedDevice ed when !System.Text.RegularExpressions.Regex.IsMatch(ed.IpAddress,
+                    @"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$") =>
+                    throw new ArgumentException("Invalid IP address."),
+
+                Smartwatch sw => new SqlCommand("AddSmartwatch", connection, transaction)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                    Parameters =
+                    {
+                        new("@DeviceId", sw.Id),
+                        new("@Name", sw.Name),
+                        new("@IsEnabled", sw.IsTurnedOn),
+                        new("@BatteryPercentage", sw.Battery)
+                    }
+                },
+
+                PersonalComputer pc => new SqlCommand("AddPersonalComputer", connection, transaction)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                    Parameters =
+                    {
+                        new("@DeviceId", pc.Id),
+                        new("@Name", pc.Name),
+                        new("@IsEnabled", pc.IsTurnedOn),
+                        new("@OperationSystem", pc.OperatingSystem)
+                    }
+                },
+
+                EmbeddedDevice ed => new SqlCommand("AddEmbedded", connection, transaction)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                    Parameters =
+                    {
+                        new("@DeviceId", ed.Id),
+                        new("@Name", ed.Name),
+                        new("@IsEnabled", ed.IsTurnedOn),
+                        new("@IpAddress", ed.IpAddress),
+                        new("@NetworkName", ed.NetworkName)
+                    }
+                },
+
+                _ => throw new InvalidOperationException("Unsupported device type.")
+            };
 
             cmd.ExecuteNonQuery();
             transaction.Commit();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine("AddDevice failed: " + ex.Message);
             transaction.Rollback();
             return false;
         }
@@ -145,37 +159,49 @@ public class DeviceRepository : IDeviceRepository
             if (updateCmd.ExecuteNonQuery() == 0)
                 throw new DBConcurrencyException("Optimistic locking failed. The device has been modified by another user.");
 
-            if (device is Smartwatch sw)
+            SqlCommand cmd = device switch
             {
-                var cmd = new SqlCommand(
-                    "UPDATE Smartwatch SET BatteryPercentage = @Battery WHERE DeviceId = @DeviceId", connection, transaction);
-                cmd.Parameters.AddWithValue("@Battery", sw.Battery);
-                cmd.Parameters.AddWithValue("@DeviceId", device.Id);
-                cmd.ExecuteNonQuery();
-            }
-            else if (device is PersonalComputer pc)
-            {
-                var cmd = new SqlCommand(
-                    "UPDATE PersonalComputer SET OperatingSystem = @OS WHERE DeviceId = @DeviceId", connection, transaction);
-                cmd.Parameters.AddWithValue("@OS", pc.OperatingSystem);
-                cmd.Parameters.AddWithValue("@DeviceId", device.Id);
-                cmd.ExecuteNonQuery();
-            }
-            else if (device is EmbeddedDevice ed)
-            {
-                var cmd = new SqlCommand(
-                    "UPDATE Embedded SET IpAddress = @IP, NetworkName = @Network WHERE DeviceId = @DeviceId", connection, transaction);
-                cmd.Parameters.AddWithValue("@IP", ed.IpAddress);
-                cmd.Parameters.AddWithValue("@Network", ed.NetworkName);
-                cmd.Parameters.AddWithValue("@DeviceId", device.Id);
-                cmd.ExecuteNonQuery();
-            }
+                Smartwatch sw => new SqlCommand(
+                    "UPDATE Smartwatch SET BatteryPercentage = @Battery WHERE DeviceId = @DeviceId", connection, transaction)
+                {
+                    Parameters =
+                    {
+                        new("@Battery", sw.Battery),
+                        new("@DeviceId", sw.Id)
+                    }
+                },
 
+                PersonalComputer pc => new SqlCommand(
+                    "UPDATE PersonalComputer SET OperatingSystem = @OS WHERE DeviceId = @DeviceId", connection, transaction)
+                {
+                    Parameters =
+                    {
+                        new("@OS", pc.OperatingSystem),
+                        new("@DeviceId", pc.Id)
+                    }
+                },
+
+                EmbeddedDevice ed => new SqlCommand(
+                    "UPDATE Embedded SET IpAddress = @IP, NetworkName = @Network WHERE DeviceId = @DeviceId", connection, transaction)
+                {
+                    Parameters =
+                    {
+                        new("@IP", ed.IpAddress),
+                        new("@Network", ed.NetworkName),
+                        new("@DeviceId", ed.Id)
+                    }
+                },
+
+                _ => null
+            };
+
+            cmd?.ExecuteNonQuery();
             transaction.Commit();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine("UpdateDevice failed: " + ex.Message);
             transaction.Rollback();
             return false;
         }
