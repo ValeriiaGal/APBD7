@@ -1,7 +1,9 @@
 namespace Tests;
 
-using System.Collections.Generic;
+using System;
+using System.Linq;
 using APBD2;
+using APBD2.Repositories;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -11,29 +13,29 @@ public class DeviceServiceTest
 
     public DeviceServiceTest()
     {
-
         var config = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json")
             .Build();
 
         string connectionString = config.GetConnectionString("UniversityDatabase")
                                 ?? "Data Source=db-mssql;Initial Catalog=2019SBD;Integrated Security=True;Trust Server Certificate=True";
-        
-        _deviceService = new DeviceService(connectionString);
+
+        var repository = new DeviceRepository(connectionString);
+        _deviceService = new DeviceService(repository);
     }
 
     [Fact]
-    public void AddDevice_ShouldCreateDevice()
+    public void AddDevice_ShouldCreateSmartwatch()
     {
-        var device = new Device
+        var device = new Smartwatch
         {
-            Name = "TestDevice",
-            IsTurnedOn = true
+            Name = "UnitTestWatch",
+            IsTurnedOn = true,
+            Battery = 80
         };
 
         var result = _deviceService.CreateDevice(device);
-
-        Assert.True(result, "Device should be created successfully.");
+        Assert.True(result, "Smartwatch should be created successfully.");
     }
 
     [Fact]
@@ -49,13 +51,12 @@ public class DeviceServiceTest
     {
         var allDevices = _deviceService.GetAllDevices();
         var firstDevice = allDevices.FirstOrDefault();
-        
-        if (firstDevice != null)
-        {
-            var device = _deviceService.GetDeviceById(firstDevice.Id);
-            Assert.NotNull(device);
-            Assert.Equal(firstDevice.Id, device.Id);
-        }
+
+        Assert.NotNull(firstDevice);
+
+        var device = _deviceService.GetDeviceById(firstDevice.Id);
+        Assert.NotNull(device);
+        Assert.Equal(firstDevice.Id, device.Id);
     }
 
     [Fact]
@@ -64,32 +65,36 @@ public class DeviceServiceTest
         var allDevices = _deviceService.GetAllDevices();
         var device = allDevices.FirstOrDefault();
 
-        if (device != null)
-        {
-            device.Name = "UpdatedName";
-            device.IsTurnedOn = !device.IsTurnedOn;
+        if (device == null) return;
 
-            var result = _deviceService.UpdateDevice(device);
+        device.Name = "UpdatedDeviceName";
+        device.IsTurnedOn = !device.IsTurnedOn;
 
-            Assert.True(result, "Device should be updated.");
-        }
+        // Simulate known RowVersion if not tracked
+        if (device.RowVersion == null || device.RowVersion.Length == 0)
+            device.RowVersion = new byte[8]; // dummy to test update
+
+        var result = _deviceService.UpdateDevice(device);
+        Assert.True(result, "Device should be updated successfully.");
     }
 
     [Fact]
     public void DeleteDevice_ShouldRemoveDevice()
     {
-        var newDevice = new Device
+        var device = new PersonalComputer
         {
-            Name = "DeviceToDelete",
-            IsTurnedOn = false
+            Name = "TempPC",
+            IsTurnedOn = false,
+            OperatingSystem = "TestOS"
         };
-        _deviceService.CreateDevice(newDevice);
+
+        var createResult = _deviceService.CreateDevice(device);
+        Assert.True(createResult, "Device should be created before deletion.");
 
         var allDevices = _deviceService.GetAllDevices();
-        var deviceToDelete = allDevices.Last();
+        var lastDevice = allDevices.Last();
 
-        var deleteResult = _deviceService.DeleteDevice(deviceToDelete.Id);
-
+        var deleteResult = _deviceService.DeleteDevice(lastDevice.Id);
         Assert.True(deleteResult, "Device should be deleted.");
     }
 }

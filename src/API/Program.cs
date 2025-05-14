@@ -1,11 +1,14 @@
+
 using APBD2;
+using APBD2.Repositories;
 using System.Text.Json.Nodes;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("UniversityDatabase");
 
-builder.Services.AddTransient<IDeviceService, DeviceService>(_ => new DeviceService(connectionString));
+builder.Services.AddTransient<IDeviceRepository, DeviceRepository>(_ => new DeviceRepository(connectionString));
+builder.Services.AddTransient<IDeviceService, DeviceService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -21,12 +24,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-
 app.MapGet("/api/devices", (IDeviceService service) =>
 {
     return Results.Ok(service.GetAllDevices());
 });
-
 
 app.MapGet("/api/devices/{id}", (IDeviceService service, string id) =>
 {
@@ -45,8 +46,8 @@ app.MapPost("/api/devices", async (IDeviceService service, HttpRequest request) 
 {
     using var reader = new StreamReader(request.Body);
     var body = await reader.ReadToEndAsync();
-    
-    if (body.TrimStart().StartsWith("{")) 
+
+    try
     {
         var json = JsonNode.Parse(body);
 
@@ -62,32 +63,25 @@ app.MapPost("/api/devices", async (IDeviceService service, HttpRequest request) 
         switch (deviceType.ToLower())
         {
             case "smartwatch":
-                int battery = json?["battery"]?.GetValue<int>() ?? 0;
-                device = new Smartwatch
-                {
-                    Name = name,
-                    Battery = battery
-                };
+                if (json?["battery"] is null)
+                    return Results.BadRequest("Missing battery for smartwatch.");
+                int battery = json["battery"].GetValue<int>();
+                device = new Smartwatch { Name = name, Battery = battery };
                 break;
 
             case "personalcomputer":
-                string os = json?["operatingSystem"]?.ToString() ?? "Unknown OS";
-                device = new PersonalComputer
-                {
-                    Name = name,
-                    OperatingSystem = os
-                };
+                string os = json?["operatingSystem"]?.ToString();
+                if (string.IsNullOrEmpty(os))
+                    return Results.BadRequest("Missing operatingSystem for PC.");
+                device = new PersonalComputer { Name = name, OperatingSystem = os };
                 break;
 
             case "embeddeddevice":
-                string ip = json?["ipAddress"]?.ToString() ?? "0.0.0.0";
-                string network = json?["networkName"]?.ToString() ?? "Unknown Network";
-                device = new EmbeddedDevice
-                {
-                    Name = name,
-                    IpAddress = ip,
-                    NetworkName = network
-                };
+                string ip = json?["ipAddress"]?.ToString();
+                string network = json?["networkName"]?.ToString();
+                if (string.IsNullOrEmpty(ip) || string.IsNullOrEmpty(network))
+                    return Results.BadRequest("Missing IP or network name.");
+                device = new EmbeddedDevice { Name = name, IpAddress = ip, NetworkName = network };
                 break;
 
             default:
@@ -100,30 +94,13 @@ app.MapPost("/api/devices", async (IDeviceService service, HttpRequest request) 
         if (service.CreateDevice(device))
             return Results.Created($"/api/devices/{device.Id}", device);
 
-        return Results.BadRequest();
+        return Results.BadRequest("Device creation failed.");
     }
-    else 
+    catch (Exception ex)
     {
-        var lines = body.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
-
-        var deviceMaker = new DeviceMaker(); 
-        foreach (var line in lines)
-        {
-            var obj = deviceMaker.CreateDevice(line);
-            if (obj is Device device)
-            {
-                service.CreateDevice(device);
-            }
-            else
-            {
-                return Results.BadRequest($"Failed to parse line: {line}");
-            }
-        }
-
-        return Results.Ok("Devices imported successfully.");
+        return Results.BadRequest($"Invalid JSON: {ex.Message}");
     }
 });
-
 
 
 app.MapPut("/api/devices", (IDeviceService service, Device device) =>
@@ -134,11 +111,9 @@ app.MapPut("/api/devices", (IDeviceService service, Device device) =>
     return Results.NotFound();
 });
 
-
 app.MapDelete("/api/devices/{id}", (IDeviceService service, string id) =>
 {
     if (service.DeleteDevice(id))
-        
         return Results.Ok();
 
     return Results.NotFound();
