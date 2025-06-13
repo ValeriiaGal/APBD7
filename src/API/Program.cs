@@ -171,3 +171,4 @@ static async Task<string> GenerateNextDeviceIdAsync(SqlConnection connection, st
 
     return $"{prefix}{next}";
 }
+//Test
